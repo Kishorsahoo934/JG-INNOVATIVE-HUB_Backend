@@ -9,7 +9,13 @@
     "start": "node src/server.js",
     "seed-admin": "node src/utils/seedAdmin.js",
     "seed-dummy": "node src/utils/seedDummyData.js",
-    "cleanup-db": "node src/utils/cleanupDatabase.js"
+    "cleanup-db": "node src/utils/cleanupDatabase.js",
+    "migrate:audit": "node src/migration/audit-databases.js",
+    "migrate:audit-schema": "node src/migration/audit-schema-deep-dive.js",
+    "migrate:dry-run": "node src/migration/dry-run.js",
+    "migrate:backup": "node src/migration/backup-baseline.js",
+    "migrate:validate": "node src/migration/validate.js",
+    "migrate": "node src/migration/migrate.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

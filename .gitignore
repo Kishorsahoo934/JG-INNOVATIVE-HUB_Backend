@@ -6,6 +6,10 @@ node_modules/
 .env.local
 .env.*.local
 .env.*
+.env.migration
+
+# Migration reports (may contain IDs / URLs)
+migration-reports/
 
 # Logs
 logs/
