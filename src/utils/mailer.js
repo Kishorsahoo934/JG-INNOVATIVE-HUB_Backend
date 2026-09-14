@@ -110,7 +110,12 @@ const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachmen
       });
       return true;
     } catch (err) {
-      console.warn('SMTP send failed:', err?.message || err);
+      const errMsg = err?.message || String(err);
+      if (errMsg.includes('535') || errMsg.includes('Username and Password not accepted')) {
+        console.warn('SMTP Gmail authentication failed: The App Password for supportinnovativehub@gmail.com was rejected or revoked. Generate a fresh 16-character App Password at https://myaccount.google.com/apppasswords');
+      } else {
+        console.warn('SMTP send failed:', errMsg);
+      }
       if (!hasBrevo()) {
         console.warn('Brevo not configured; email not sent. Check SMTP settings.');
         return false;
@@ -133,7 +138,12 @@ const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachmen
     });
     return true;
   } catch (err) {
-    console.error('Brevo fallback failed:', err?.message || err);
+    const errMsg = err?.message || String(err);
+    if (errMsg.includes('unrecognised IP address')) {
+      console.warn('Brevo API fallback failed: Your current IP address needs to be authorized in your Brevo dashboard Security settings (https://app.brevo.com/security/authorised_ips)');
+    } else {
+      console.error('Brevo fallback failed:', errMsg);
+    }
     return false;
   }
 };

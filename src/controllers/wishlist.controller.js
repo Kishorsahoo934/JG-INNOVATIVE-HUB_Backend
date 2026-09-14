@@ -5,9 +5,9 @@ import Product from '../models/Product.model.js';
 export const getWishlist = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate('wishlist');
-    res.json(user.wishlist || []);
+    res.json({ success: true, data: user.wishlist || [], message: '' });
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching wishlist' });
+    res.status(500).json({ success: false, message: 'Error fetching wishlist' });
   }
 };
 
@@ -15,16 +15,18 @@ export const getWishlist = async (req, res) => {
 export const addToWishlist = async (req, res) => {
   try {
     const { productId } = req.body;
+    if (!productId) return res.status(400).json({ success: false, message: 'productId is required' });
     const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
     const user = await User.findById(req.user._id);
     if (!user.wishlist.includes(productId)) {
       user.wishlist.push(productId);
       await user.save();
     }
-    res.json(user.wishlist);
+    const populated = await User.findById(req.user._id).populate('wishlist');
+    res.json({ success: true, data: populated.wishlist || [], message: '' });
   } catch (err) {
-    res.status(500).json({ message: 'Error adding to wishlist' });
+    res.status(500).json({ success: false, message: 'Error adding to wishlist' });
   }
 };
 
@@ -32,11 +34,13 @@ export const addToWishlist = async (req, res) => {
 export const removeFromWishlist = async (req, res) => {
   try {
     const { productId } = req.params;
+    if (!productId) return res.status(400).json({ success: false, message: 'productId is required' });
     const user = await User.findById(req.user._id);
     user.wishlist = user.wishlist.filter(id => id.toString() !== productId);
     await user.save();
-    res.json(user.wishlist);
+    const populated = await User.findById(req.user._id).populate('wishlist');
+    res.json({ success: true, data: populated.wishlist || [], message: '' });
   } catch (err) {
-    res.status(500).json({ message: 'Error removing from wishlist' });
+    res.status(500).json({ success: false, message: 'Error removing from wishlist' });
   }
 };

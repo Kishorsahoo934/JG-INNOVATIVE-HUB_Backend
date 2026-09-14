@@ -73,7 +73,7 @@ export const createReview = async (req, res, next) => {
       message: orderId ? `A new review was submitted for order ${orderId}.` : 'A new review was submitted.',
       entityType: 'Review',
       entityId: review._id,
-    });
+    }).catch(() => {});
 
     res.status(201).json({ success: true, data: review });
   } catch (error) {

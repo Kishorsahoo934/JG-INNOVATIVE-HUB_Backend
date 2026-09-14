@@ -343,7 +343,7 @@ export const updateProductStock = async (req, res, next) => {
         message: `${product.name} was marked out of stock.`,
         entityType: 'Product',
         entityId: product._id,
-      });
+      }).catch(() => {});
     }
     productListCache.invalidateAll();
 

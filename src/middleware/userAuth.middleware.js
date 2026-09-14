@@ -14,8 +14,12 @@ const userAuth = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.userId = decoded.id;
-      const user = await User.findById(decoded.id).select('-password');
+      const userId = decoded.id || decoded._id || decoded.userId || decoded.sub;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Invalid token payload' });
+      }
+      req.userId = userId;
+      const user = await User.findById(userId).select('-password');
       if (!user) return res.status(401).json({ success: false, message: 'User not found' });
       req.user = user;
       next();
