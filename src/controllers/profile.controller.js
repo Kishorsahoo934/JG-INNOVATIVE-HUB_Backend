@@ -125,6 +125,7 @@ export const addAddress = async (req, res) => {
   try {
     const address = req.body;
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     user.addresses.push(address);
     await user.save();
     res.json({ success: true, data: user });
@@ -139,6 +140,7 @@ export const updateAddress = async (req, res) => {
     const { addressId } = req.params;
     const updates = req.body;
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     const addr = user.addresses.id(addressId);
     if (!addr) return res.status(404).json({ success: false, message: 'Address not found' });
     Object.assign(addr, updates);
@@ -154,6 +156,7 @@ export const deleteAddress = async (req, res) => {
   try {
     const { addressId } = req.params;
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     user.addresses = user.addresses.filter((addr) => String(addr._id) !== String(addressId));
     await user.save();
     res.json({ success: true, data: user });
@@ -167,6 +170,7 @@ export const setDefaultAddress = async (req, res) => {
   try {
     const { addressId } = req.params;
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     user.addresses.forEach((addr) => {
       addr.isDefault = String(addr._id) === String(addressId);
     });

@@ -156,8 +156,8 @@ export const login = async (req, res, next) => {
         });
       }
 
-      // Generate admin token
-      token = jwt.sign({ email: admin.email, role: 'admin' }, process.env.JWT_SECRET, {
+      // Generate admin token (include id so userAuth/adminOrUserAuth can extract it)
+      token = jwt.sign({ id: admin._id, email: admin.email, role: 'admin' }, process.env.JWT_SECRET, {
         expiresIn: '7d'
       });
       userResponse = {

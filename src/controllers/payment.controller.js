@@ -30,10 +30,16 @@ async function getDeliveryChargeForState(stateName) {
   return doc ? Number(doc.defaultShippingCharge) || 0 : 0;
 }
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let _razorpay = null;
+function getRazorpay() {
+  if (!_razorpay) {
+    _razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  }
+  return _razorpay;
+}
 
 const buildAddressSnapshot = (address) => ({
   fullName: address.fullName,
@@ -88,7 +94,7 @@ const decrementStock = async (items, session = null) => {
         message: `${product.name} is now out of stock.`,
         entityType: 'Product',
         entityId: product._id,
-      });
+      }).catch(() => {});
     } else if (prevQty >= 10 && nextQty < 10) {
       void createNotification({
         type: 'system',
@@ -96,7 +102,7 @@ const decrementStock = async (items, session = null) => {
         message: `${product.name} stock is low (${nextQty} left).`,
         entityType: 'Product',
         entityId: product._id,
-      });
+      }).catch(() => {});
     }
   }
 };
@@ -136,7 +142,7 @@ export const createRazorpayOrder = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid total amount' });
     }
 
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: Math.round(totalAmount * 100),
       currency: 'INR',
       receipt: `rcpt_${Date.now()}`,
@@ -318,7 +324,7 @@ export const verifyRazorpayPayment = async (req, res, next) => {
       message: `Order ${order._id} was paid successfully.`,
       entityType: 'Order',
       entityId: order._id,
-    });
+    }).catch(() => {});
 
     res.json({ success: true, data: { orderId: order._id, paymentId } });
   } catch (error) {

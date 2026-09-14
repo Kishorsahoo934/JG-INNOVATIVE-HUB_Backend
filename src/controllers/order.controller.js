@@ -67,7 +67,7 @@ export const createOrder = async (req, res, next) => {
 			message: `New order ${order._id} placed by ${order.customerName || 'customer'}.`,
 			entityType: 'Order',
 			entityId: order._id,
-		});
+		}).catch(() => {});
 		res.json({ success: true, data: order });
 	} catch (err) {
 		next(err);
@@ -247,7 +247,7 @@ export const updateOrderStatus = async (req, res, next) => {
 				message: `Order ${order._id} status changed to ${nextStatus}.`,
 				entityType: 'Order',
 				entityId: order._id,
-			});
+			}).catch(() => {});
 		}
 		res.json({ success: true, data: order });
 	} catch (err) {
