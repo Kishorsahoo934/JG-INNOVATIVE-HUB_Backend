@@ -1,22 +1,18 @@
-import nodemailer from 'nodemailer';
-import { sendBrevoEmail } from '../services/brevoEmail.service.js';
+import NativeSMTPClient from '../services/nativeSmtp.js';
 
-const buildTransporter = () => {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const secure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
+const getClient = () => {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.replace(/\s/g, '') ?? '';
 
-  if (!host || !user || !pass) {
+  if (!user || !pass) {
     return null;
   }
 
-  return nodemailer.createTransport({
+  return new NativeSMTPClient({
     host,
-    port,
-    secure,
-    auth: { user, pass },
+    user,
+    pass,
   });
 };
 
@@ -34,10 +30,6 @@ const getSenderDetails = () => {
   return { rawFrom: rawFrom.trim(), email: rawFrom.trim() };
 };
 
-/**
- * Gmail SMTP only reliably sends when From matches the authenticated account.
- * If SMTP_FROM is a different domain, use SMTP_USER as From and keep the display name.
- */
 const resolveSmtpFromHeader = (sender) => {
   const smtpUser = process.env.SMTP_USER?.trim();
   if (!smtpUser || !sender) return { from: sender.rawFrom, smtpReplyTo: undefined };
@@ -48,28 +40,18 @@ const resolveSmtpFromHeader = (sender) => {
   const isLikelyGmail =
     host.includes('gmail') || userLower.endsWith('@gmail.com') || userLower.endsWith('@googlemail.com');
 
-  if (isLikelyGmail && fromLower !== userLower) {
-    const displayName = sender.name || 'Innovative Hub';
-    const safeName = String(displayName).replace(/"/g, '');
-    return {
-      from: `"${safeName}" <${smtpUser}>`,
-      smtpReplyTo: sender.email,
-    };
+  if (isLikelyGmail && userLower !== fromLower) {
+    const fromName = sender.name || fromLower;
+    return { from: `"${fromName}" <${smtpUser}>`, smtpReplyTo: sender.email };
   }
-
   return { from: sender.rawFrom, smtpReplyTo: undefined };
 };
 
-const hasBrevo = () => Boolean(process.env.BREVO_API_KEY);
-
 const formatReplyTo = (replyTo) => {
-  if (!replyTo) return undefined;
-  if (typeof replyTo === 'string') return replyTo;
-  if (replyTo.email && replyTo.name) return `${replyTo.name} <${replyTo.email}>`;
-  return replyTo.email || undefined;
+  if (!replyTo?.email) return undefined;
+  return replyTo.name ? `"${replyTo.name}" <${replyTo.email}>` : replyTo.email;
 };
 
-/** Base URL for all email links (login, order, checkout). Use FRONTEND_URL on Render so links point to live site, not localhost. */
 export const getFrontendBaseUrl = () => {
   const u = process.env.FRONTEND_URL?.trim();
   if (u) return u.replace(/\/$/, '');
@@ -82,10 +64,6 @@ export const getFrontendBaseUrl = () => {
   return 'http://localhost:5177';
 };
 
-/**
- * Send email via SMTP, falling back to Brevo if SMTP fails and Brevo is configured.
- * @returns {Promise<boolean>} true if email was sent, false if skipped or failed
- */
 const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachments = [], replyTo }) => {
   const sender = getSenderDetails();
   if (!sender) {
@@ -93,109 +71,35 @@ const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachmen
     return false;
   }
 
-  const transporter = buildTransporter();
+  const client = getClient();
 
-  if (transporter) {
+  if (client) {
     try {
       const to = toName ? `"${String(toName).replace(/"/g, '')}" <${toEmail}>` : toEmail;
       const { from, smtpReplyTo } = resolveSmtpFromHeader(sender);
       const mergedReplyTo = replyTo || (smtpReplyTo ? { email: smtpReplyTo } : undefined);
-      await transporter.sendMail({
+      
+      await client.sendMail({
         from,
         to,
         subject,
         html,
-        attachments: attachments || [],
         replyTo: formatReplyTo(mergedReplyTo),
       });
       return true;
     } catch (err) {
       const errMsg = err?.message || String(err);
       if (errMsg.includes('535') || errMsg.includes('Username and Password not accepted')) {
-        console.warn('SMTP Gmail authentication failed: The App Password for supportinnovativehub@gmail.com was rejected or revoked. Generate a fresh 16-character App Password at https://myaccount.google.com/apppasswords');
+        console.warn('SMTP Gmail authentication failed. Check App Password.');
       } else {
         console.warn('SMTP send failed:', errMsg);
       }
-      if (!hasBrevo()) {
-        console.warn('Brevo not configured; email not sent. Check SMTP settings.');
-        return false;
-      }
-    }
-  } else {
-    if (!hasBrevo()) {
-      console.warn('Mail: SMTP not configured (SMTP_HOST, SMTP_USER, SMTP_PASS) and Brevo not set; skipping email');
       return false;
     }
-  }
-
-  try {
-    await sendBrevoEmail({
-      sender: { email: sender.email, name: sender.name || 'Innovative Hub' },
-      to: { email: toEmail, name: toName },
-      subject,
-      html,
-      replyTo,
-    });
-    return true;
-  } catch (err) {
-    const errMsg = err?.message || String(err);
-    if (errMsg.includes('unrecognised IP address')) {
-      console.warn('Brevo API fallback failed: Your current IP address needs to be authorized in your Brevo dashboard Security settings (https://app.brevo.com/security/authorised_ips)');
-    } else {
-      console.error('Brevo fallback failed:', errMsg);
-    }
+  } else {
+    console.warn('Mail: SMTP not configured (SMTP_USER, SMTP_PASS); skipping email');
     return false;
   }
-};
-
-export const sendWelcomeEmail = async ({ email, name }) => {
-  const baseUrl = getFrontendBaseUrl();
-  const loginUrl = `${baseUrl}/login`;
-  const subject = 'Welcome to Innovative Hub';
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
-      <p>Hi ${name || 'Customer'},</p>
-      <p>Welcome to Innovative Hub! 🎉<br />Your account has been successfully created, and you’re all set to explore.</p>
-      <p>At Innovative Hub, you can:</p>
-      <ul>
-        <li>Browse high-quality electronics &amp; components</li>
-        <li>Explore microcontroller boards, sensors, and modules</li>
-        <li>Track your orders easily</li>
-        <li>Get support for projects, innovation, and 3D printing services</li>
-      </ul>
-      <p>You will receive email updates for every order (confirmed, packed, shipped, delivered) so you're always in the loop.</p>
-      <p>You can log in anytime using your registered email address.</p>
-      <p>👉 Login here: <a href="${loginUrl}">${loginUrl}</a></p>
-      <p>If you have any questions or need help, feel free to reply to this email — we’re happy to help.</p>
-      <p>Happy building &amp; innovating 🚀<br />Team Innovative Hub</p>
-      <p>—<br />Innovative Hub<br />Building ideas into reality</p>
-    </div>
-  `;
-
-  await sendEmailWithFallback({ toEmail: email, toName: name, subject, html });
-};
-
-export const sendOrderSuccessEmail = async ({ email, name, order, invoiceUrl, invoicePdfBuffer, invoiceFilename }) => {
-  const subject = `Order Confirmed - ${order?._id}`;
-  const baseUrl = getFrontendBaseUrl();
-  const orderPageUrl = `${baseUrl}/order/${order?._id}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
-      <p>Hi ${name || 'Customer'},</p>
-      <p><strong>Your order has been placed successfully.</strong></p>
-      <p>Order ID: <strong>${order?._id}</strong></p>
-      <p>Total: <strong>₹${Number(order?.totalAmount || 0).toFixed(2)}</strong></p>
-      <p><strong>Invoice (PDF):</strong> You can view and download your invoice from your order page: <a href="${orderPageUrl}">View order &amp; download invoice (PDF)</a>.${invoicePdfBuffer && invoiceFilename ? ' The invoice is also attached to this email.' : ''}</p>
-      <p>You will receive an email at each step: when your order is packed, shipped (with tracking), and delivered.</p>
-      <p>— Innovative Hub Team</p>
-    </div>
-  `;
-
-  const attachments = [];
-  if (invoicePdfBuffer && invoiceFilename) {
-    attachments.push({ filename: invoiceFilename, content: invoicePdfBuffer });
-  }
-  await sendEmailWithFallback({ toEmail: email, toName: name, subject, html, attachments });
 };
 
 const orderLinkHtml = (orderId, baseUrl, label = 'View order') => {
@@ -352,4 +256,24 @@ export const sendContactEmail = async ({ toEmail, fromName, fromEmail, subject, 
     replyTo: fromEmail ? { email: fromEmail, name: fromName } : undefined,
   });
   return sent;
+};
+
+
+export const sendWelcomeEmail = async ({ email, name }) => {
+  const subject = 'Welcome to Innovative Hub';
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
+      <p>Hi ${name || 'Customer'},</p>
+      <p>Welcome to Innovative Hub!</p>
+      <p>Your account has been successfully verified.</p>
+      <p>We are excited to have you on board.</p>
+      <p>- Innovative Hub Team</p>
+    </div>
+  `;
+  await sendEmailWithFallback({ toEmail: email, toName: name, subject, html });
+};
+
+
+export const sendOrderSuccessEmail = async ({ email, name, order }) => {
+  return sendOrderConfirmedEmail({ email, name, order });
 };

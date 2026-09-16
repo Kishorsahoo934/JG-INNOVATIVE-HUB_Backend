@@ -6,7 +6,7 @@ export const getAllDevelopedProducts = async (req, res, next) => {
   try {
     const { category, search, status, limit, skip } = req.query;
     
-    const query = { isActive: true };
+    const query = req.query.admin === 'true' ? {} : { isActive: true };
 
     if (category) query.category = category;
     if (status) query.status = status;
@@ -183,10 +183,33 @@ export const seedDevelopedProducts = async (req, res, next) => {
   }
 };
 
+const normalizeMedia = (list) => {
+  if (!list) return [];
+  const arr = Array.isArray(list) ? list : [list];
+  return arr
+    .map((item) => {
+      if (!item) return null;
+      if (typeof item === 'string') {
+        const url = item.trim();
+        return url ? { url, publicId: '' } : null;
+      }
+      if (typeof item === 'object') {
+        const url = (item.url || item.secure_url || '').toString().trim();
+        if (!url) return null;
+        const publicId = (item.publicId || item.public_id || '').toString();
+        return { url, publicId };
+      }
+      return null;
+    })
+    .filter(Boolean);
+};
+
 // ADMIN: CREATE DEVELOPED PRODUCT
 export const createDevelopedProduct = async (req, res, next) => {
   try {
-    const product = new DevelopedProduct(req.body);
+    const body = { ...req.body };
+    if (body.images) body.images = normalizeMedia(body.images);
+    const product = new DevelopedProduct(body);
     await product.save();
     res.status(201).json({ success: true, data: product });
   } catch (error) {
@@ -197,7 +220,9 @@ export const createDevelopedProduct = async (req, res, next) => {
 // ADMIN: UPDATE DEVELOPED PRODUCT
 export const updateDevelopedProduct = async (req, res, next) => {
   try {
-    const product = await DevelopedProduct.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const body = { ...req.body };
+    if (body.images) body.images = normalizeMedia(body.images);
+    const product = await DevelopedProduct.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
     res.status(200).json({ success: true, data: product });
   } catch (error) {
@@ -215,4 +240,6 @@ export const deleteDevelopedProduct = async (req, res, next) => {
     next(error);
   }
 };
+
+
 
