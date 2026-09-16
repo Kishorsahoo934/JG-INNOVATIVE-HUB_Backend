@@ -30,6 +30,8 @@ import internshipRoutes from './routes/internship.routes.js';
 import galleryRoutes from './routes/gallery.routes.js';
 import projectRoutes from './routes/project.routes.js';
 import visitorRoutes from './routes/visitor.routes.js';
+import developedProductRoutes from './routes/developedProduct.routes.js';
+import productDevContentRoutes from './routes/productDevContent.routes.js';
 
 
 dotenv.config();
@@ -96,6 +98,8 @@ app.use("/api/workshops", workshopRoutes);
 app.use("/api/internships", internshipRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/developed-products", developedProductRoutes);
+app.use("/api/product-dev-content", productDevContentRoutes);
 app.use("/api/visitors", visitorRoutes);
 
 app.use(errorHandler);

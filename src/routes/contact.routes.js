@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
-import { submitContactForm } from '../controllers/contact.controller.js';
+import { submitContactForm, createConsultationOrder, submitConsultationForm, getMyConsultations } from '../controllers/contact.controller.js';
+import userAuth from '../middleware/userAuth.middleware.js';
 
 const router = express.Router();
 const upload = multer({
@@ -24,5 +25,8 @@ function handleMulterError(err, _req, res, next) {
 }
 
 router.post('/', upload.array('files', 5), handleMulterError, submitContactForm);
+router.post('/consultation/order', userAuth, createConsultationOrder);
+router.post('/consultation/submit', userAuth, submitConsultationForm);
+router.get('/consultation/my-bookings', userAuth, getMyConsultations);
 
 export default router;
