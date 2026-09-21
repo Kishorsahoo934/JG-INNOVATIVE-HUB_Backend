@@ -8,7 +8,7 @@ import User from "../models/User.model.js";
 import SessionSlot from "../models/SessionSlot.model.js";
 import Workshop from "../models/Workshop.model.js";
 import Internship from "../models/Internship.model.js";
-import { createWorkshopAdmin, updateWorkshopAdmin } from "../controllers/workshop.controller.js";
+import { createWorkshopAdmin, updateWorkshopAdmin, deleteWorkshopAdmin } from "../controllers/workshop.controller.js";
 
 const router = express.Router();
 
@@ -205,6 +205,7 @@ router.get("/workshops", adminAuth, async (req, res, next) => {
 // Admin: Create workshop directly
 router.post("/workshops", adminAuth, createWorkshopAdmin);
 router.patch("/workshops/:id", adminAuth, updateWorkshopAdmin);
+router.delete("/workshops/:id", adminAuth, deleteWorkshopAdmin);
 
 // Admin: Get pending workshops
 router.get("/workshops/pending", adminAuth, async (req, res, next) => {
@@ -252,7 +253,17 @@ router.get("/internships", adminAuth, async (req, res, next) => {
 });
 
 // Admin: Review/Update internship application status
-router.patch("/internships/:id/status", adminAuth, async (req, res, next) => {
+router.patch('/internships/:id', adminAuth, async (req, res, next) => {
+    try {
+      const app = await Internship.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true }).populate('studentId', 'name email');
+      if (!app) return res.status(404).json({ success: false, message: 'Application not found' });
+      res.json({ success: true, data: app });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch('/internships/:id/status', adminAuth, async (req, res, next) => {
   try {
     const { status } = req.body;
     const allowed = ['pending', 'under-review', 'shortlisted', 'rejected'];
@@ -275,3 +286,4 @@ router.patch("/internships/:id/status", adminAuth, async (req, res, next) => {
 });
 
 export default router;
+
