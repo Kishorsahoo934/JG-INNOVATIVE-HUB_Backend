@@ -13,6 +13,7 @@ export const createWorkshopAdmin = async (req, res, next) => {
     }
 
     const workshop = await Workshop.create({
+      status: 'approved',
       title,
       description,
       hostName,
@@ -144,17 +145,31 @@ export const updateWorkshopAdmin = async (req, res, next) => {
       }
     }
 
-    const workshop = await Workshop.findByIdAndUpdate(
-      id,
-      { showOnHomepage, ...otherFields },
-      { new: true }
-    );
+    const updateData = { ...otherFields };
+    if (showOnHomepage !== undefined) {
+      updateData.showOnHomepage = showOnHomepage;
+    }
+    const workshop = await Workshop.findByIdAndUpdate(id, updateData, { new: true });
 
     if (!workshop) {
       return res.status(404).json({ success: false, message: 'Workshop not found' });
     }
 
     res.json({ success: true, data: workshop });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const deleteWorkshopAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const workshop = await Workshop.findByIdAndDelete(id);
+    if (!workshop) {
+      return res.status(404).json({ success: false, message: 'Workshop not found' });
+    }
+    res.json({ success: true, message: 'Workshop deleted successfully' });
   } catch (error) {
     next(error);
   }
