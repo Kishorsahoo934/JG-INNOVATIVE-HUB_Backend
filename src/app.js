@@ -32,6 +32,7 @@ import projectRoutes from './routes/project.routes.js';
 import visitorRoutes from './routes/visitor.routes.js';
 import developedProductRoutes from './routes/developedProduct.routes.js';
 import productDevContentRoutes from './routes/productDevContent.routes.js';
+import { addRealtimeClient, publishDataChange } from './utils/realtime.js';
 
 
 dotenv.config();
@@ -70,6 +71,38 @@ app.use(
     credentials: true,
   })
 );
+
+// Keep all open admin and customer views in sync after a successful mutation.
+// The event has only route/method metadata, so protected data remains protected.
+app.use((req, res, next) => {
+  // Uploading a file only returns a Cloudinary URL. It is not a data update,
+  // and broadcasting it would remount an open form before the user can submit.
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) || req.path.includes('/upload/')) return next();
+  res.once('finish', () => {
+    if (res.statusCode >= 200 && res.statusCode < 400) {
+      publishDataChange({ method: req.method, path: req.path });
+    }
+  });
+  next();
+});
+
+app.get('/api/realtime', (req, res) => {
+  res.status(200);
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write('retry: 3000\n\n');
+  const removeClient = addRealtimeClient(res);
+  const heartbeat = setInterval(() => res.write(': ping\n\n'), 25000);
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    removeClient();
+  });
+});
 
 // Routes
 app.use("/api/user", profileRoutes);
