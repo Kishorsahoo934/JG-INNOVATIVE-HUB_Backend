@@ -8,7 +8,8 @@ const corsOptions = {
   origin: [
     "http://localhost:5173",
     "http://localhost:3000",
-    "https://jg-innovative-hub-frontend.vercel.app/"
+    "https://admin.inovative-hub.com",
+    "https://innovative-hub.com"
   ],
   credentials: true
 };
