@@ -93,6 +93,7 @@ const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachmen
       return true;
     } catch (err) {
       const errMsg = err?.message || String(err);
+      console.error(`[SMTP] Verification email failed for ${toEmail}: ${errMsg}`);
       if (errMsg.includes('535') || errMsg.includes('Username and Password not accepted')) {
         console.warn('SMTP Gmail authentication failed. Check App Password.');
       } else {
