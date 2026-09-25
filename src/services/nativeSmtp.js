@@ -32,11 +32,13 @@ class NativeSMTPClient {
     if (html) emailData += `--${boundary}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${html}\r\n\r\n`;
     emailData += `--${boundary}--\r\n`;
 
-    let socket = await this.connect();
+    const connection = await this.connectWithFallback();
+    let socket = connection.socket;
+    const secure = connection.secure;
     try {
       await this.command(socket, null, 220);
       await this.command(socket, `EHLO ${this.host}`, 250);
-      if (!this.secure) {
+      if (!secure) {
         await this.command(socket, 'STARTTLS', 220);
         socket = await this.upgradeToTls(socket);
         await this.command(socket, `EHLO ${this.host}`, 250);
@@ -57,14 +59,35 @@ class NativeSMTPClient {
     }
   }
 
-  connect() {
+  async connectWithFallback() {
+    try {
+      return { socket: await this.connect(this.port, this.secure), secure: this.secure };
+    } catch (firstError) {
+      const fallbackPort = this.port === 465 ? 587 : 465;
+      const fallbackSecure = fallbackPort === 465;
+      try {
+        return { socket: await this.connect(fallbackPort, fallbackSecure), secure: fallbackSecure };
+      } catch (fallbackError) {
+        const firstMessage = firstError.message || firstError.code || 'unknown error';
+        const fallbackMessage = fallbackError.message || fallbackError.code || 'unknown error';
+        throw new Error(
+          `SMTP connection failed on ports ${this.port} and ${fallbackPort}: ${firstMessage}; ${fallbackMessage}`
+        );
+      }
+    }
+  }
+
+  connect(port = this.port, secure = this.secure) {
     return new Promise((resolve, reject) => {
-      const socket = this.secure
-        ? tls.connect({ host: this.host, port: this.port, servername: this.host })
-        : net.connect({ host: this.host, port: this.port });
-      const onError = (error) => reject(new Error(`SMTP connection failed: ${error.message}`));
+      const socket = secure
+        ? tls.connect({ host: this.host, port, family: 4, servername: this.host })
+        : net.connect({ host: this.host, port, family: 4 });
+      const onError = (error) => reject(new Error(`SMTP connection failed on port ${port}: ${error.message || error.code || 'unknown error'}`));
+      socket.setTimeout(15000, () => {
+        socket.destroy(new Error(`connection timeout on port ${port}`));
+      });
       socket.once('secureConnect', () => resolve(socket));
-      socket.once('connect', () => { if (!this.secure) resolve(socket); });
+      socket.once('connect', () => { if (!secure) resolve(socket); });
       socket.once('error', onError);
     });
   }
