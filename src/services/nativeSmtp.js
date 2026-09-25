@@ -1,113 +1,131 @@
+import net from 'net';
 import tls from 'tls';
 
 /**
- * A native, zero-dependency SMTP client supporting Implicit TLS (Port 465).
+ * A native, zero-dependency SMTP client supporting STARTTLS (587) and
+ * implicit TLS (465).
  * Built because we want full control over the SMTP transaction without third-party bloat like nodemailer.
  */
 class NativeSMTPClient {
   constructor(options) {
     this.host = options.host || 'smtp.gmail.com';
-    this.port = 465;
+    this.port = Number(options.port || 587);
+    this.secure = options.secure ?? this.port === 465;
     this.user = options.user;
     this.pass = options.pass;
   }
 
   /**
-   * Send an email using raw SMTP commands over TLS.
+   * Send an email using raw SMTP commands over native sockets.
    */
   async sendMail({ from, to, replyTo, subject, html, text }) {
+    const boundary = `----=_Part_${Date.now().toString(16)}`;
+    const fromFormatted = typeof from === 'string' ? from : `${from.name} <${from.email}>`;
+    const toFormatted = Array.isArray(to) ? to.join(', ') : to;
+    let emailData = `From: ${fromFormatted}\r\nTo: ${toFormatted}\r\n`;
+    if (replyTo) {
+      const replyToFormatted = typeof replyTo === 'string' ? replyTo : `${replyTo.name} <${replyTo.email}>`;
+      emailData += `Reply-To: ${replyToFormatted}\r\n`;
+    }
+    emailData += `Subject: ${subject}\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary="${boundary}"\r\n\r\n`;
+    if (text) emailData += `--${boundary}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${text}\r\n\r\n`;
+    if (html) emailData += `--${boundary}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${html}\r\n\r\n`;
+    emailData += `--${boundary}--\r\n`;
+
+    const connection = await this.connectWithFallback();
+    let socket = connection.socket;
+    const secure = connection.secure;
+    try {
+      await this.command(socket, null, 220);
+      await this.command(socket, `EHLO ${this.host}`, 250);
+      if (!secure) {
+        await this.command(socket, 'STARTTLS', 220);
+        socket = await this.upgradeToTls(socket);
+        await this.command(socket, `EHLO ${this.host}`, 250);
+      }
+      await this.command(socket, 'AUTH LOGIN', 334);
+      await this.command(socket, Buffer.from(this.user).toString('base64'), 334);
+      await this.command(socket, Buffer.from(this.pass).toString('base64'), 235);
+      await this.command(socket, `MAIL FROM:<${this.extractEmail(fromFormatted)}>`, 250);
+      await this.command(socket, `RCPT TO:<${this.extractEmail(toFormatted)}>`, 250);
+      await this.command(socket, 'DATA', 354);
+      await this.command(socket, `${emailData}.`, 250);
+      await this.command(socket, 'QUIT', 221, 250);
+      socket.end();
+      return { success: true };
+    } catch (error) {
+      socket.destroy();
+      throw error;
+    }
+  }
+
+  async connectWithFallback() {
+    try {
+      return { socket: await this.connect(this.port, this.secure), secure: this.secure };
+    } catch (firstError) {
+      const fallbackPort = this.port === 465 ? 587 : 465;
+      const fallbackSecure = fallbackPort === 465;
+      try {
+        return { socket: await this.connect(fallbackPort, fallbackSecure), secure: fallbackSecure };
+      } catch (fallbackError) {
+        const firstMessage = firstError.message || firstError.code || 'unknown error';
+        const fallbackMessage = fallbackError.message || fallbackError.code || 'unknown error';
+        throw new Error(
+          `SMTP connection failed on ports ${this.port} and ${fallbackPort}: ${firstMessage}; ${fallbackMessage}`
+        );
+      }
+    }
+  }
+
+  connect(port = this.port, secure = this.secure) {
     return new Promise((resolve, reject) => {
-      let currentStep = 0;
-      let transactionLog = [];
+      const socket = secure
+        ? tls.connect({ host: this.host, port, family: 4, servername: this.host })
+        : net.connect({ host: this.host, port, family: 4 });
+      const onError = (error) => reject(new Error(`SMTP connection failed on port ${port}: ${error.message || error.code || 'unknown error'}`));
+      socket.setTimeout(15000, () => {
+        socket.destroy(new Error(`connection timeout on port ${port}`));
+      });
+      socket.once('secureConnect', () => resolve(socket));
+      socket.once('connect', () => { if (!secure) resolve(socket); });
+      socket.once('error', onError);
+    });
+  }
 
-      const boundary = `----=_Part_${Date.now().toString(16)}`;
-      const fromFormatted = typeof from === 'string' ? from : `${from.name} <${from.email}>`;
-      const toFormatted = Array.isArray(to) ? to.join(', ') : to;
+  upgradeToTls(socket) {
+    return new Promise((resolve, reject) => {
+      socket.removeAllListeners('error');
+      const secureSocket = tls.connect({ socket, servername: this.host });
+      secureSocket.once('secureConnect', () => resolve(secureSocket));
+      secureSocket.once('error', (error) => reject(new Error(`SMTP TLS upgrade failed: ${error.message}`)));
+    });
+  }
 
-      let emailData = `From: ${fromFormatted}\r\n`;
-      emailData += `To: ${toFormatted}\r\n`;
-      if (replyTo) {
-        const replyToFormatted = typeof replyTo === 'string' ? replyTo : `${replyTo.name} <${replyTo.email}>`;
-        emailData += `Reply-To: ${replyToFormatted}\r\n`;
-      }
-      emailData += `Subject: ${subject}\r\n`;
-      emailData += `MIME-Version: 1.0\r\n`;
-      emailData += `Content-Type: multipart/alternative; boundary="${boundary}"\r\n\r\n`;
-
-      if (text) {
-        emailData += `--${boundary}\r\n`;
-        emailData += `Content-Type: text/plain; charset=utf-8\r\n\r\n`;
-        emailData += `${text}\r\n\r\n`;
-      }
-
-      if (html) {
-        emailData += `--${boundary}\r\n`;
-        emailData += `Content-Type: text/html; charset=utf-8\r\n\r\n`;
-        emailData += `${html}\r\n\r\n`;
-      }
-      emailData += `--${boundary}--\r\n`;
-
-      const steps = [
-        { expect: 220, send: `EHLO ${this.host}` },
-        { expect: 250, send: 'AUTH LOGIN' },
-        { expect: 334, send: Buffer.from(this.user).toString('base64') },
-        { expect: 334, send: Buffer.from(this.pass).toString('base64') },
-        { expect: 235, send: `MAIL FROM:<${this.extractEmail(fromFormatted)}>` },
-        { expect: 250, send: `RCPT TO:<${this.extractEmail(toFormatted)}>` },
-        { expect: 250, send: 'DATA' },
-        { expect: 354, send: `${emailData}.\r\n` },
-        { expect: 250, send: 'QUIT' }
-      ];
-
-      const socket = tls.connect(this.port, this.host, () => {});
-
-      const handleData = (data) => { console.log('DEBUG:', data.toString().trim()); 
-        const response = data.toString();
-        transactionLog.push(`S: ${response.trim()}`);
-        
-        const lines = response.trim().split('\r\n');
-        const lastLine = lines[lines.length - 1];
-        
-        if (lastLine.match(/^\d{3}-/)) {
+  command(socket, command, expected, alternateExpected) {
+    return new Promise((resolve, reject) => {
+      let buffer = '';
+      const onData = (data) => {
+        buffer += data.toString();
+        const lines = buffer.split('\r\n');
+        buffer = lines.pop() || '';
+        const finalLine = lines.findLast((line) => /^\d{3} /.test(line));
+        if (!finalLine) return;
+        cleanup();
+        const code = Number.parseInt(finalLine.slice(0, 3), 10);
+        if (code !== expected && code !== alternateExpected) {
+          reject(new Error(`SMTP Error: expected ${expected}, got ${code}: ${finalLine}`));
           return;
         }
-
-        const code = parseInt(lastLine.substring(0, 3), 10);
-        
-        if (currentStep < steps.length) {
-          const expected = currentStep < steps.length ? steps[currentStep].expect : null;
-          if (expected && code !== expected && code !== 220) {
-             reject(new Error(`SMTP Error: Expected ${expected}, got ${code}. Log: ${transactionLog.join(' | ')}`));
-             socket.end();
-             return;
-          }
-          sendNext();
-        } else {
-          socket.end();
-          resolve({ success: true, log: transactionLog });
-        }
+        resolve(finalLine);
       };
-
-      const sendNext = () => {
-        if (currentStep < steps.length) {
-           const cmd = steps[currentStep].send;
-           transactionLog.push(`C: ${cmd === Buffer.from(this.pass).toString('base64') ? '***PASSWORD***' : cmd.trim()}`);
-           
-           if (cmd.endsWith('.\r\n')) {
-               socket.write(cmd);
-           } else {
-               socket.write(`${cmd}\r\n`);
-           }
-           currentStep++;
-        }
+      const onError = (error) => { cleanup(); reject(error); };
+      const cleanup = () => {
+        socket.off('data', onData);
+        socket.off('error', onError);
       };
-
-      const handleError = (err) => {
-        reject(new Error(`Socket Error: ${err.message}`));
-      };
-
-      socket.on('data', handleData);
-      socket.on('error', handleError);
+      socket.on('data', onData);
+      socket.once('error', onError);
+      if (command) socket.write(`${command}\r\n`);
     });
   }
 
