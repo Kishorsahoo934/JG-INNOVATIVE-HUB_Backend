@@ -45,7 +45,9 @@ app.get('/api/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 // Support multiple origins via comma-separated CORS_ORIGIN env variable
-const rawCors = process.env.CORS_ORIGIN || "http://localhost:5173";
+const configuredCors = process.env.CORS_ORIGIN?.trim();
+const defaultCors = "http://localhost:5173,https://inovative-hub.com,https://www.inovative-hub.com,https://innovative-hub.com,https://www.innovative-hub.com";
+const rawCors = configuredCors ? `${defaultCors},${configuredCors}` : defaultCors;
 const allowedOrigins = rawCors === '*'
   ? ['*']
   : rawCors.split(',').map((s) => s.trim()).filter(Boolean);

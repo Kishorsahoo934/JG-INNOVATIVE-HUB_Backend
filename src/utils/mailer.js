@@ -2,6 +2,8 @@ import NativeSMTPClient from '../services/nativeSmtp.js';
 
 const getClient = () => {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number.parseInt(process.env.SMTP_PORT || '587', 10);
+  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.replace(/\s/g, '') ?? '';
 
@@ -11,6 +13,8 @@ const getClient = () => {
 
   return new NativeSMTPClient({
     host,
+    port,
+    secure,
     user,
     pass,
   });

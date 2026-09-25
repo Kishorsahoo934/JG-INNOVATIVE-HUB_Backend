@@ -10,6 +10,8 @@ const corsOptions = {
     "http://localhost:3000",
     "https://admin.inovative-hub.com",
     "https://admin.innovative-hub.com",
+    "https://inovative-hub.com",
+    "https://www.inovative-hub.com",
     "https://innovative-hub.com",
     "https://www.innovative-hub.com"
   ],
