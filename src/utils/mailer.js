@@ -1,27 +1,7 @@
-import NativeSMTPClient from '../services/nativeSmtp.js';
-
-const getClient = () => {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number.parseInt(process.env.SMTP_PORT || '587', 10);
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.replace(/\s/g, '') ?? '';
-
-  if (!user || !pass) {
-    return null;
-  }
-
-  return new NativeSMTPClient({
-    host,
-    port,
-    secure,
-    user,
-    pass,
-  });
-};
+import { sendBrevoEmail } from '../services/brevoEmail.service.js';
 
 const getSenderDetails = () => {
-  const rawFrom = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const rawFrom = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || process.env.SMTP_FROM;
   if (!rawFrom) return null;
 
   const match = rawFrom.match(/^(.*)<(.+)>$/);
@@ -31,24 +11,11 @@ const getSenderDetails = () => {
     return { rawFrom, email, name: name || undefined };
   }
 
-  return { rawFrom: rawFrom.trim(), email: rawFrom.trim() };
-};
-
-const resolveSmtpFromHeader = (sender) => {
-  const smtpUser = process.env.SMTP_USER?.trim();
-  if (!smtpUser || !sender) return { from: sender.rawFrom, smtpReplyTo: undefined };
-
-  const host = (process.env.SMTP_HOST || '').toLowerCase();
-  const userLower = smtpUser.toLowerCase();
-  const fromLower = sender.email.toLowerCase();
-  const isLikelyGmail =
-    host.includes('gmail') || userLower.endsWith('@gmail.com') || userLower.endsWith('@googlemail.com');
-
-  if (isLikelyGmail && userLower !== fromLower) {
-    const fromName = sender.name || fromLower;
-    return { from: `"${fromName}" <${smtpUser}>`, smtpReplyTo: sender.email };
-  }
-  return { from: sender.rawFrom, smtpReplyTo: undefined };
+  return {
+    rawFrom: rawFrom.trim(),
+    email: rawFrom.trim(),
+    name: process.env.BREVO_SENDER_NAME?.trim() || undefined,
+  };
 };
 
 const formatReplyTo = (replyTo) => {
@@ -75,34 +42,28 @@ const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachmen
     return false;
   }
 
-  const client = getClient();
+  if (!process.env.BREVO_API_KEY) {
+    console.warn('Mail: Brevo API key not configured; skipping email');
+    return false;
+  }
 
-  if (client) {
-    try {
-      const to = toName ? `"${String(toName).replace(/"/g, '')}" <${toEmail}>` : toEmail;
-      const { from, smtpReplyTo } = resolveSmtpFromHeader(sender);
-      const mergedReplyTo = replyTo || (smtpReplyTo ? { email: smtpReplyTo } : undefined);
-      
-      await client.sendMail({
-        from,
-        to,
-        subject,
-        html,
-        replyTo: formatReplyTo(mergedReplyTo),
-      });
-      return true;
-    } catch (err) {
-      const errMsg = err?.message || String(err);
-      console.error(`[SMTP] Verification email failed for ${toEmail}: ${errMsg}`);
-      if (errMsg.includes('535') || errMsg.includes('Username and Password not accepted')) {
-        console.warn('SMTP Gmail authentication failed. Check App Password.');
-      } else {
-        console.warn('SMTP send failed:', errMsg);
-      }
-      return false;
-    }
-  } else {
-    console.warn('Mail: SMTP not configured (SMTP_USER, SMTP_PASS); skipping email');
+  try {
+    await sendBrevoEmail({
+      sender: {
+        email: sender.email,
+        name: sender.name,
+      },
+      to: {
+        email: toEmail,
+        name: toName,
+      },
+      subject,
+      html,
+      replyTo: replyTo ? { email: replyTo.email, name: replyTo.name } : undefined,
+    });
+    return true;
+  } catch (err) {
+    console.error(`[Brevo] Email failed for ${toEmail}: ${err?.message || String(err)}`);
     return false;
   }
 };
