@@ -507,7 +507,13 @@ export const resendVerifyEmail = async (req, res, next) => {
       
       const baseUrl = getFrontendBaseUrl();
       const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
-      void sendVerificationEmail({ email: pendingUser.email, name: pendingUser.name, verifyUrl });
+      const sent = await sendVerificationEmail({ email: pendingUser.email, name: pendingUser.name, verifyUrl });
+      if (!sent) {
+        return res.status(503).json({
+          success: false,
+          message: 'We could not send the verification email. Please try again later.',
+        });
+      }
     } else if (user && !user.emailVerified) {
       // Legacy unverified users that were saved in User collection directly
       user.emailVerifyToken = verifyTokenHash;
@@ -516,7 +522,13 @@ export const resendVerifyEmail = async (req, res, next) => {
       
       const baseUrl = getFrontendBaseUrl();
       const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
-      void sendVerificationEmail({ email: user.email, name: user.name, verifyUrl });
+      const sent = await sendVerificationEmail({ email: user.email, name: user.name, verifyUrl });
+      if (!sent) {
+        return res.status(503).json({
+          success: false,
+          message: 'We could not send the verification email. Please try again later.',
+        });
+      }
     }
 
     return res.json({ success: true, message: 'Verification email sent. Please check your inbox.' });

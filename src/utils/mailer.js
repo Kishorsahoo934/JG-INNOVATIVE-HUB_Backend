@@ -63,6 +63,9 @@ const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachmen
     });
     return true;
   } catch (err) {
+    // Keep the provider response in Render logs. It is the actionable reason
+    // for delivery failures (invalid key, unverified sender, IP restriction,
+    // quota, etc.) without exposing it to a public API response.
     console.error(`[Brevo] Email failed for ${toEmail}: ${err?.message || String(err)}`);
     return false;
   }
