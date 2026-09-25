@@ -2,6 +2,7 @@ import https from 'node:https';
 
 const BREVO_API_HOST = 'api.brevo.com';
 const BREVO_API_PATH = '/v3/smtp/email';
+const DEFAULT_TIMEOUT_MS = 15_000;
 
 export const sendBrevoEmail = async ({ sender, to, subject, html, replyTo }) => {
   const apiKey = process.env.BREVO_API_KEY;
@@ -24,6 +25,7 @@ export const sendBrevoEmail = async ({ sender, to, subject, html, replyTo }) => 
   };
 
   const body = JSON.stringify(payload);
+  const timeoutMs = Number.parseInt(process.env.BREVO_API_TIMEOUT_MS || '', 10) || DEFAULT_TIMEOUT_MS;
 
   await new Promise((resolve, reject) => {
     const request = https.request(
@@ -56,12 +58,17 @@ export const sendBrevoEmail = async ({ sender, to, subject, html, replyTo }) => 
           } catch (err) {
             message = data;
           }
-          reject(new Error(`Brevo API error ${response.statusCode}: ${message}`));
+          const error = new Error(`Brevo API error ${response.statusCode}: ${message}`);
+          error.statusCode = response.statusCode;
+          reject(error);
         });
       },
     );
 
     request.on('error', (err) => reject(err));
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`Brevo API request timed out after ${timeoutMs}ms`));
+    });
     request.write(body);
     request.end();
   });

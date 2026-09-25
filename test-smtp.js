@@ -1,12 +1,4 @@
 import NativeSMTPClient from './src/services/nativeSmtp.js';
-
-const client = new NativeSMTPClient({
-  host: 'smtp.gmail.com',
-  user: 'Info@inovative-hub.com',
-  pass: 'wdfndymigfokymok', // Or whatever it is from .env. Let's just use .env!
-});
-
-// Since we can't easily grab process.env without dotenv, I'll just load it.
 import dotenv from 'dotenv';
 dotenv.config();
 
