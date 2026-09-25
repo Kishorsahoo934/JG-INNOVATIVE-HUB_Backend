@@ -235,7 +235,7 @@ export const sendVerificationEmail = async ({ email, name, verifyUrl }) => {
     </div>
   `;
 
-  await sendEmailWithFallback({ toEmail: email, toName: name, subject, html });
+  return sendEmailWithFallback({ toEmail: email, toName: name, subject, html });
 };
 
 export const sendContactEmail = async ({ toEmail, fromName, fromEmail, subject, message, attachments, attachmentList }) => {

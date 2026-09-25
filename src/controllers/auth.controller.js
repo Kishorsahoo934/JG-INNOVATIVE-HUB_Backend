@@ -105,7 +105,14 @@ export const register = async (req, res, next) => {
 
     const baseUrl = getFrontendBaseUrl();
     const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
-    void sendVerificationEmail({ email: user.email, name: user.name, verifyUrl });
+    const emailSent = await sendVerificationEmail({ email: user.email, name: user.name, verifyUrl });
+
+    if (!emailSent) {
+      return res.status(503).json({
+        success: false,
+        message: 'We could not send the verification email. Please try again later.',
+      });
+    }
 
     res.status(201).json({
       success: true,
