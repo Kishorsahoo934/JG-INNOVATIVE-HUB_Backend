@@ -118,17 +118,53 @@ export const submitConsultationForm = async (req, res, next) => {
     const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'supportinnovativehub@gmail.com';
     const emailBody = `Payment of ₹49 received!\n\nUser: ${req.user.name} (${req.user.email})\nPhone: ${phone}\n\n${message}`;
 
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    const attachments = files
+      .filter((file) => file && file.buffer)
+      .map((file) => ({
+        filename: file.originalname || 'attachment',
+        content: file.buffer,
+        contentType: file.mimetype,
+      }));
+    const attachmentList = files.map((f) => `${f.originalname || 'file'} (${Math.round((f.size || 0) / 1024)} KB)`);
+
     const sent = await sendContactEmail({
       toEmail: receiver,
       fromName: name,
       fromEmail: email,
       subject: subject || 'Consultation Booking (Paid)',
       message: emailBody,
+      attachments,
+      attachmentList,
     });
+
 
     if (!sent) {
       return res.status(503).json({ success: false, message: 'Payment verified, but failed to send email notification.' });
     }
+
+
+    // Extract Product Dev specific fields if present (they are sent as form-data so they are in req.body)
+    const { 
+      company, productName, productCategory, currentStage, estimatedBudget, expectedTimeline, problemStatement, detailedDescription
+    } = req.body;
+
+    // Send confirmation email to the user!
+    const userEmailBody = `Hello ${name},
+
+Your product development idea has been submitted successfully!
+
+Our engineering team has received your consultation booking and will review your requirements. We will contact you shortly to schedule our Requirement Discussion.
+
+Thank you for choosing JG Innovative Hub!`;
+    await sendContactEmail({
+      toEmail: email,
+      fromName: 'JG Innovative Hub',
+      fromEmail: 'supportinnovativehub@gmail.com',
+      subject: 'Idea Submission Successful - Product Development',
+      message: userEmailBody
+    }).catch(err => console.error("Failed to send user confirmation email", err));
 
     // Save to Database
     const booking = new ConsultationBooking({
@@ -137,11 +173,20 @@ export const submitConsultationForm = async (req, res, next) => {
       email,
       phone,
       message,
+      company,
+      productName,
+      productCategory,
+      currentStage,
+      estimatedBudget,
+      expectedTimeline,
+      problemStatement,
+      detailedDescription,
       amount: 49,
       razorpay_order_id,
       razorpay_payment_id
     });
     await booking.save();
+
 
     res.status(200).json({ success: true, message: 'Consultation booked successfully!' });
   } catch (error) {

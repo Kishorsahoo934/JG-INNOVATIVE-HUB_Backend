@@ -367,7 +367,15 @@ export const forgotPassword = async (req, res, next) => {
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
     const sent = await sendPasswordResetEmail({ email: user.email, name: user.name, resetUrl });
     if (!sent) {
-      console.error('[forgotPassword] Reset email failed to send (check SMTP / SMTP_FROM / app password):', user.email);
+      // Do not leave a usable reset token behind when no reset link was sent.
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+      console.error('[forgotPassword] Reset email failed to send (check Brevo API key, IP security, and verified sender):', user.email);
+      return res.status(503).json({
+        success: false,
+        message: 'We could not send the reset email. Please try again later.',
+      });
     }
 
     return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
