@@ -8,6 +8,7 @@ import User from "../models/User.model.js";
 import SessionSlot from "../models/SessionSlot.model.js";
 import Workshop from "../models/Workshop.model.js";
 import Internship from "../models/Internship.model.js";
+import InternshipPost from "../models/InternshipPost.model.js";
 import ConsultationBooking from "../models/ConsultationBooking.model.js";
 import { createWorkshopAdmin, updateWorkshopAdmin, deleteWorkshopAdmin } from "../controllers/workshop.controller.js";
 
@@ -378,3 +379,77 @@ router.patch('/consultations/:id/stage', adminAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+
+
+// Admin: Edit Consultation
+router.patch('/consultations/:id', adminAuth, async (req, res, next) => {
+  try {
+    const consultation = await ConsultationBooking.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!consultation) {
+      return res.status(404).json({ success: false, message: "Consultation not found" });
+    }
+    res.json({ success: true, data: consultation });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin: Delete Consultation
+router.delete('/consultations/:id', adminAuth, async (req, res, next) => {
+  try {
+    const consultation = await ConsultationBooking.findByIdAndDelete(req.params.id);
+    if (!consultation) {
+      return res.status(404).json({ success: false, message: "Consultation not found" });
+    }
+    res.json({ success: true, message: "Consultation deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============ INTERNSHIP POSTS ============
+
+// Admin: Create Internship Post
+router.post('/internship-posts', adminAuth, async (req, res, next) => {
+  try {
+    const post = new InternshipPost(req.body);
+    await post.save();
+    res.status(201).json({ success: true, data: post });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin: Get all Internship Posts
+router.get('/internship-posts', adminAuth, async (req, res, next) => {
+  try {
+    const posts = await InternshipPost.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: posts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin: Update Internship Post
+router.patch('/internship-posts/:id', adminAuth, async (req, res, next) => {
+  try {
+    const post = await InternshipPost.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+    res.json({ success: true, data: post });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin: Delete Internship Post
+router.delete('/internship-posts/:id', adminAuth, async (req, res, next) => {
+  try {
+    const post = await InternshipPost.findByIdAndDelete(req.params.id);
+    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+    res.json({ success: true, message: 'Post deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
