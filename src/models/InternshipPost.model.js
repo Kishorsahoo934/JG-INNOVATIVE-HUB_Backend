@@ -6,6 +6,7 @@ const internshipPostSchema = new mongoose.Schema({
   category: { type: String, enum: ['paid', 'self-funded'], required: true },
   tier: { type: String },
   skills: [{ type: String }],
+  image: { type: String },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
