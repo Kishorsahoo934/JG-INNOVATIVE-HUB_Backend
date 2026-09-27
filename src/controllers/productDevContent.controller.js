@@ -37,7 +37,7 @@ export const seedContent = async (req, res, next) => {
       { type: 'service', title: 'Rapid Prototyping', description: 'First working prototype in 2-4 weeks. Iterate fast, learn faster.', icon: 'Zap', order: 5 },
       { type: 'service', title: 'Mechanical Enclosure Design', description: 'CAD, 3D print, CNC and injection-mould ready enclosures.', icon: 'Box', order: 6 },
       { type: 'service', title: 'Robotics Development', description: 'Mobile robots, robotic arms, autonomous platforms.', icon: 'Bot', order: 7 },
-      { type: 'service', title: 'Industrial Automation', description: 'PLC, HMI, SCADA and custom controller integration.', icon: 'Factory', order: 8 },
+      { type: 'service', title: 'VLSI Development', description: 'FPGA, ASIC, SoC design and custom silicon chip development.', icon: 'Cpu', order: 8 },
       { type: 'service', title: 'Reverse Engineering', description: 'Recreate, improve or replace legacy hardware safely.', icon: 'RefreshCcw', order: 9 },
       { type: 'service', title: 'Prototype Testing', description: 'EMI/EMC pre-compliance, environmental, functional, life-cycle.', icon: 'ShieldCheck', order: 10 },
       { type: 'service', title: 'Manufacturing Support', description: 'BOM sourcing, DFM, pilot runs, contract manufacturer coordination.', icon: 'Package', order: 11 },

@@ -7,6 +7,10 @@ const internshipPostSchema = new mongoose.Schema({
   tier: { type: String },
   skills: [{ type: String }],
   image: { type: String },
+  startDate: { type: String },
+  deadline: { type: String },
+  location: { type: String },
+  stipend: { type: String },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
