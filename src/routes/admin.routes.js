@@ -11,6 +11,7 @@ import Internship from "../models/Internship.model.js";
 import InternshipPost from "../models/InternshipPost.model.js";
 import ConsultationBooking from "../models/ConsultationBooking.model.js";
 import { createWorkshopAdmin, updateWorkshopAdmin, deleteWorkshopAdmin } from "../controllers/workshop.controller.js";
+import { emailService } from '../services/email.service.js';
 
 const router = express.Router();
 
@@ -337,6 +338,67 @@ router.patch('/internships/:id', adminAuth, async (req, res, next) => {
 
     application.status = status;
     await application.save();
+
+    // Send email notification to the applicant
+    try {
+      const applicantEmail = application.email;
+      const applicantName = application.name || 'Applicant';
+      
+      const statusLabels = {
+        'pending': 'Pending Review',
+        'under-review': 'Under Review',
+        'shortlisted': 'Shortlisted',
+        'rejected': 'Not Selected'
+      };
+      const statusColors = {
+        'pending': '#f59e0b',
+        'under-review': '#3b82f6',
+        'shortlisted': '#10b981',
+        'rejected': '#ef4444'
+      };
+      const statusMessages = {
+        'under-review': 'Your application is currently being reviewed by our team. We will get back to you soon with further updates.',
+        'shortlisted': 'Congratulations! 🎉 Your application has been shortlisted. Our team will reach out to you shortly with the next steps.',
+        'rejected': 'After careful consideration, we regret to inform you that your application has not been selected at this time. We encourage you to apply again in the future.',
+        'pending': 'Your application status has been updated to pending review.'
+      };
+
+      const statusLabel = statusLabels[status] || status;
+      const statusColor = statusColors[status] || '#6b7280';
+      const statusMessage = statusMessages[status] || 'Your application status has been updated.';
+
+      const emailHtml = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 30px 24px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700;">JG Innovative Hub</h1>
+            <p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 13px;">Internship Application Update</p>
+          </div>
+          <div style="padding: 32px 24px;">
+            <p style="font-size: 16px; color: #1f2937; margin: 0 0 20px 0;">Dear <strong>${applicantName}</strong>,</p>
+            <div style="background-color: #f8fafc; border-left: 4px solid ${statusColor}; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
+              <p style="font-size: 13px; color: #6b7280; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.5px;">Application Status</p>
+              <p style="font-size: 20px; font-weight: 700; color: ${statusColor}; margin: 0;">${statusLabel}</p>
+            </div>
+            <p style="font-size: 15px; color: #374151; line-height: 1.7; margin: 0 0 24px 0;">${statusMessage}</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+            <p style="font-size: 13px; color: #9ca3af; margin: 0;">If you have any questions, feel free to reach out to us at <a href="mailto:supportinnovativehub@gmail.com" style="color: #3b82f6;">supportinnovativehub@gmail.com</a></p>
+          </div>
+          <div style="background-color: #f8fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+            <p style="font-size: 12px; color: #9ca3af; margin: 0;">© ${new Date().getFullYear()} JG Innovative Hub. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+
+      await emailService.sendOperationalEmail(
+        applicantEmail,
+        `Internship Application Update - ${statusLabel}`,
+        emailHtml
+      );
+      console.log(`[Internship Status Email] Sent to ${applicantEmail} - Status: ${status}`);
+    } catch (emailErr) {
+      console.error('[Internship Status Email] Failed to send:', emailErr.message);
+      // Don't fail the status update if email fails
+    }
 
     res.json({ success: true, message: `Application status updated to ${status}`, data: application });
   } catch (error) {

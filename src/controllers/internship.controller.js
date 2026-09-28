@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import Internship from '../models/Internship.model.js';
+import { sendInternshipApplicationEmail } from '../utils/mailer.js';
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,

@@ -1,4 +1,5 @@
 import { sendBrevoEmail } from '../services/brevoEmail.service.js';
+import { emailService } from '../services/email.service.js';
 
 const getSenderDetails = () => {
   const rawFrom = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || process.env.SMTP_FROM;
@@ -38,7 +39,7 @@ export const getFrontendBaseUrl = () => {
 const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachments = [], replyTo }) => {
   const sender = getSenderDetails();
   if (!sender) {
-    console.warn('Mail: sender not configured (set SMTP_FROM or SMTP_USER); skipping email');
+    console.warn('Mail: sender not configured; skipping email');
     return false;
   }
 
@@ -49,24 +50,16 @@ const sendEmailWithFallback = async ({ toEmail, toName, subject, html, attachmen
 
   try {
     await sendBrevoEmail({
-      sender: {
-        email: sender.email,
-        name: sender.name,
-      },
-      to: {
-        email: toEmail,
-        name: toName,
-      },
+      sender: { email: sender.email, name: sender.name },
+      to: { email: toEmail, name: toName },
       subject,
       html,
       replyTo: replyTo ? { email: replyTo.email, name: replyTo.name } : undefined,
     });
+    console.log(`[Brevo] Email successfully sent to ${toEmail}`);
     return true;
   } catch (err) {
-    // Keep the provider response in Render logs. It is the actionable reason
-    // for delivery failures (invalid key, unverified sender, IP restriction,
-    // quota, etc.) without exposing it to a public API response.
-    console.error(`[Brevo] Email failed for ${toEmail}: ${err?.message || String(err)}`);
+    console.error(`[Brevo] Failed for ${toEmail}: ${err?.message}`);
     return false;
   }
 };
@@ -229,14 +222,25 @@ export const sendContactEmail = async ({ toEmail, fromName, fromEmail, subject, 
 
 
 export const sendWelcomeEmail = async ({ email, name }) => {
-  const subject = 'Welcome to Innovative Hub';
+  const subject = 'Welcome to Innovative Hub! 🚀';
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
-      <p>Hi ${name || 'Customer'},</p>
-      <p>Welcome to Innovative Hub!</p>
-      <p>Your account has been successfully verified.</p>
-      <p>We are excited to have you on board.</p>
-      <p>- Innovative Hub Team</p>
+      <p>Hello ${name || 'User'},</p>
+      <p><strong>Welcome to Innovative Hub! 🚀</strong></p>
+      <p>Your account has been successfully created.</p>
+      <p>You're now part of an ecosystem built for <strong>people who don't just learn technology — they build with it.</strong></p>
+      <p>At Innovative Hub, you can explore:</p>
+      <p>🔧 <strong>Components & Electronics</strong><br>Find the tools and components you need for your next project.</p>
+      <p>🤖 <strong>Projects & Project Kits</strong><br>Turn ideas into working prototypes through practical projects.</p>
+      <p>📚 <strong>Learning & Workshops</strong><br>Learn robotics, electronics, embedded systems, IoT and emerging technologies.</p>
+      <p>💡 <strong>Innovation & Product Development</strong><br>Explore ideas, develop prototypes and work towards real-world solutions.</p>
+      <p>Your account is your starting point.<br><strong>What you build from here is up to you.</strong></p>
+      <h3>Think. Build. Innovate.</h3>
+      <p>We're excited to have you with us and look forward to seeing what you create.</p>
+      <p><strong>Welcome to the Hub.</strong></p>
+      <p>Regards,<br><strong>Team Innovative Hub</strong><br><em>Where Ideas Become Innovation.</em></p>
+      <p>🌐 <a href="http://www.inovative-hub.com">www.inovative-hub.com</a></p>
+      <p style="font-size: 0.85em; color: #555; margin-top: 20px;"><em>This is an automated email. Please do not reply to this message.</em></p>
     </div>
   `;
   await sendEmailWithFallback({ toEmail: email, toName: name, subject, html });
@@ -245,4 +249,21 @@ export const sendWelcomeEmail = async ({ email, name }) => {
 
 export const sendOrderSuccessEmail = async ({ email, name, order }) => {
   return sendOrderConfirmedEmail({ email, name, order });
+};
+
+export const sendInternshipApplicationEmail = async ({ email, name, category }) => {
+  const subject = 'Internship Application Received - Innovative Hub';
+  const categoryName = category === 'paid' ? 'Paid Internship' : 'Self-Funded Internship';
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
+      <p>Hello ${name || 'Applicant'},</p>
+      <p><strong>Your internship application has been received successfully!</strong></p>
+      <p>Thank you for applying for the <strong>${categoryName}</strong> program at Innovative Hub.</p>
+      <p>Our team will review your application and get back to you shortly with further updates.</p>
+      <p>If you have any questions, feel free to contact us.</p>
+      <br/>
+      <p>Regards,<br><strong>Team Innovative Hub</strong></p>
+    </div>
+  `;
+  await sendEmailWithFallback({ toEmail: email, toName: name, subject, html });
 };
