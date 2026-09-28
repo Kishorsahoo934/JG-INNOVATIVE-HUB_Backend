@@ -116,6 +116,7 @@ export const applyForInternship = async (req, res, next) => {
       razorpayOrderId: razorpay_order_id || undefined
     });
 
+    void sendInternshipApplicationEmail({ email, name, category }).catch(err => console.error('[Mailer] Error sending internship confirmation:', err));
     res.status(201).json({
       success: true,
       message: 'Internship application submitted successfully.',
