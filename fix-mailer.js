@@ -22,7 +22,7 @@ const code = `\n\nexport const sendWelcomeEmail = async ({ email, name }) => {
 <p>You can log in anytime using your registered email address.</p>
 
 <p>
-  👉 <a href="http://localhost:5177/login" target="_blank" rel="noopener noreferrer"><strong>Login here</strong></a>
+  👉 <a href="https://inovative-hub.com/login" target="_blank" rel="noopener noreferrer"><strong>Login here</strong></a>
 </p>
 
 <p>If you have any questions or need help, feel free to reply to this email — we’re happy to help.</p>
