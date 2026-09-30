@@ -30,6 +30,7 @@ import internshipRoutes from './routes/internship.routes.js';
 import galleryRoutes from './routes/gallery.routes.js';
 import projectRoutes from './routes/project.routes.js';
 import visitorRoutes from './routes/visitor.routes.js';
+import feedbackRoutes from './routes/feedback.routes.js';
 import developedProductRoutes from './routes/developedProduct.routes.js';
 import productDevContentRoutes from './routes/productDevContent.routes.js';
 import { addRealtimeClient, publishDataChange } from './utils/realtime.js';
@@ -149,6 +150,7 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/developed-products", developedProductRoutes);
 app.use("/api/product-dev-content", productDevContentRoutes);
 app.use("/api/visitors", visitorRoutes);
+app.use("/api/feedback", feedbackRoutes);
 
 app.use(errorHandler);
 

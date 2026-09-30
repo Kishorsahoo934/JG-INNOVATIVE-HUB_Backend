@@ -9,7 +9,7 @@ export const getVisitorCount = async (req, res, next) => {
     }
     res.status(200).json({
       success: true,
-      count: visitor.count
+      data: { count: visitor.count }
     });
   } catch (error) {
     next(error);
@@ -26,7 +26,7 @@ export const incrementVisitorCount = async (req, res, next) => {
     );
     res.status(200).json({
       success: true,
-      count: visitor.count
+      data: { count: visitor.count }
     });
   } catch (error) {
     next(error);

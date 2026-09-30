@@ -10,6 +10,15 @@ const consultationBookingSchema = new mongoose.Schema(
     amount: { type: Number, required: true, default: 49 },
     razorpay_order_id: { type: String, required: true },
     razorpay_payment_id: { type: String, required: true },
+    company: { type: String },
+    productName: { type: String },
+    productCategory: { type: String },
+    currentStage: { type: String },
+    estimatedBudget: { type: String },
+    expectedTimeline: { type: String },
+    problemStatement: { type: String },
+    detailedDescription: { type: String },
+    attachments: [{ url: String, publicId: String, filename: String }],
     status: { type: String, enum: ['paid', 'completed'], default: 'paid' }
   },
   { timestamps: true }
