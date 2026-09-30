@@ -1,5 +1,8 @@
 import { sendContactEmail } from '../utils/mailer.js';
 import ConsultationBooking from '../models/ConsultationBooking.model.js';
+import { uploadBufferToCloudinary } from '../middleware/upload.middleware.js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 
 export const submitContactForm = async (req, res, next) => {
   try {
@@ -55,9 +58,6 @@ export const submitContactForm = async (req, res, next) => {
   }
 };
 
-import Razorpay from 'razorpay';
-import crypto from 'crypto';
-
 let _razorpay = null;
 function getRazorpay() {
   if (!_razorpay) {
@@ -95,7 +95,8 @@ export const submitConsultationForm = async (req, res, next) => {
   try {
     const { 
       name, email, phone, message, subject, 
-      razorpay_order_id, razorpay_payment_id, razorpay_signature 
+      razorpay_order_id, razorpay_payment_id, razorpay_signature,
+      company, productName, productCategory, currentStage, estimatedBudget, expectedTimeline, problemStatement, detailedDescription
     } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
@@ -115,60 +116,32 @@ export const submitConsultationForm = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Name, email, and message are required.' });
     }
 
-    const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'supportinnovativehub@gmail.com';
-    const emailBody = `Payment of ₹49 received!\n\nUser: ${req.user.name} (${req.user.email})\nPhone: ${phone}\n\n${message}`;
-
-
+    // 1. Process files: Upload to Cloudinary so admin can see them!
     const files = Array.isArray(req.files) ? req.files : [];
-    const attachments = files
-      .filter((file) => file && file.buffer)
-      .map((file) => ({
-        filename: file.originalname || 'attachment',
-        content: file.buffer,
-        contentType: file.mimetype,
-      }));
-    const attachmentList = files.map((f) => `${f.originalname || 'file'} (${Math.round((f.size || 0) / 1024)} KB)`);
-
-    const sent = await sendContactEmail({
-      toEmail: receiver,
-      fromName: name,
-      fromEmail: email,
-      subject: subject || 'Consultation Booking (Paid)',
-      message: emailBody,
-      attachments,
-      attachmentList,
-    });
-
-
-    if (!sent) {
-      return res.status(503).json({ success: false, message: 'Payment verified, but failed to send email notification.' });
+    const uploadedAttachments = [];
+    
+    for (const file of files) {
+      if (file.buffer) {
+        try {
+          const result = await uploadBufferToCloudinary({
+            buffer: file.buffer,
+            folder: 'innovative-hub/consultations',
+            filename: `consultation_${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+          });
+          uploadedAttachments.push({
+            url: result.secure_url,
+            publicId: result.public_id,
+            filename: file.originalname
+          });
+        } catch (uploadErr) {
+          console.error('[Cloudinary] Failed to upload consultation attachment:', uploadErr);
+        }
+      }
     }
 
-
-    // Extract Product Dev specific fields if present (they are sent as form-data so they are in req.body)
-    const { 
-      company, productName, productCategory, currentStage, estimatedBudget, expectedTimeline, problemStatement, detailedDescription
-    } = req.body;
-
-    // Send confirmation email to the user!
-    const userEmailBody = `Hello ${name},
-
-Your product development idea has been submitted successfully!
-
-Our engineering team has received your consultation booking and will review your requirements. We will contact you shortly to schedule our Requirement Discussion.
-
-Thank you for choosing JG Innovative Hub!`;
-    await sendContactEmail({
-      toEmail: email,
-      fromName: 'JG Innovative Hub',
-      fromEmail: 'supportinnovativehub@gmail.com',
-      subject: 'Idea Submission Successful - Product Development',
-      message: userEmailBody
-    }).catch(err => console.error("Failed to send user confirmation email", err));
-
-    // Save to Database
+    // 2. ALWAYS SAVE to Database if payment verified!
     const booking = new ConsultationBooking({
-      user: req.user._id,
+      user: req.userId || (req.user && req.user._id),
       name,
       email,
       phone,
@@ -181,13 +154,54 @@ Thank you for choosing JG Innovative Hub!`;
       expectedTimeline,
       problemStatement,
       detailedDescription,
+      attachments: uploadedAttachments,
       amount: 49,
       razorpay_order_id,
       razorpay_payment_id
     });
     await booking.save();
 
+    // 3. Prepare Email to Admin
+    const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'supportinnovativehub@gmail.com';
+    const emailBody = `Payment of ₹49 received!\n\nUser: ${req.user ? req.user.name : name} (${email})\nPhone: ${phone}\n\n${message}`;
 
+    const emailAttachments = files
+      .filter((file) => file && file.buffer)
+      .map((file) => ({
+        filename: file.originalname || 'attachment',
+        content: file.buffer,
+        contentType: file.mimetype,
+      }));
+    const attachmentList = files.map((f) => `${f.originalname || 'file'} (${Math.round((f.size || 0) / 1024)} KB)`);
+
+    // 4. Send Emails (Do NOT await them, so we never block returning 200 OK)
+    sendContactEmail({
+      toEmail: receiver,
+      fromName: name,
+      fromEmail: email,
+      subject: subject || 'Consultation Booking (Paid)',
+      message: emailBody,
+      attachments: emailAttachments,
+      attachmentList,
+    }).catch(err => console.error("[Mailer] Failed to send admin consultation email", err));
+
+    const userEmailBody = `Hello ${name},
+
+Your product development idea has been submitted successfully!
+
+Our engineering team has received your consultation booking and will review your requirements. We will contact you shortly to schedule our Requirement Discussion.
+
+Thank you for choosing JG Innovative Hub!`;
+    
+    sendContactEmail({
+      toEmail: email,
+      fromName: 'JG Innovative Hub',
+      fromEmail: 'supportinnovativehub@gmail.com',
+      subject: 'Idea Submission Successful - Product Development',
+      message: userEmailBody
+    }).catch(err => console.error("[Mailer] Failed to send user confirmation email", err));
+
+    // 5. Instantly return success to the frontend!
     res.status(200).json({ success: true, message: 'Consultation booked successfully!' });
   } catch (error) {
     console.error('Consultation form error:', error?.message || error);
@@ -197,9 +211,10 @@ Thank you for choosing JG Innovative Hub!`;
 
 export const getMyConsultations = async (req, res, next) => {
   try {
-    const bookings = await ConsultationBooking.find({ user: req.user._id }).sort({ createdAt: -1 });
+    const bookings = await ConsultationBooking.find({ user: req.userId || (req.user && req.user._id) }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: bookings });
   } catch (error) {
     next(error);
   }
 };
+

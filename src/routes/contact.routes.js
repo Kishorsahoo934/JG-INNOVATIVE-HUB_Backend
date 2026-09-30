@@ -26,7 +26,7 @@ function handleMulterError(err, _req, res, next) {
 
 router.post('/', upload.array('files', 5), handleMulterError, submitContactForm);
 router.post('/consultation/order', userAuth, createConsultationOrder);
-router.post('/consultation/submit', userAuth, submitConsultationForm);
+router.post('/consultation/submit', userAuth, upload.array('files', 10), handleMulterError, submitConsultationForm);
 router.get('/consultation/my-bookings', userAuth, getMyConsultations);
 
 export default router;
