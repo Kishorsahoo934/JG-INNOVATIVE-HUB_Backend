@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+﻿import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -37,11 +37,14 @@ export const emailService = {
     }
   },
 
-  async sendOperationalEmail(to, subject, html) {
+  async sendOperationalEmail(to, subject, html, attachments = [], replyTo = undefined) {
     if (!to || !subject || !html) throw new Error('Missing required fields (to, subject, html)');
     try {
       const from = process.env.EMAIL_FROM_INFO || `"JG Innovative Hub" <${process.env.SMTP_USER}>`;
-      const result = await transporter.sendMail({ from, to, subject, html });
+      const mailOptions = { from, to, subject, html };
+      if (replyTo) mailOptions.replyTo = replyTo.email || replyTo;
+      if (attachments && attachments.length > 0) mailOptions.attachments = attachments;
+      const result = await transporter.sendMail(mailOptions);
       console.log(`[Operational Email] Sent to ${to}`);
       return result;
     } catch (error) {
@@ -80,3 +83,4 @@ export const emailService = {
     }
   }
 };
+
