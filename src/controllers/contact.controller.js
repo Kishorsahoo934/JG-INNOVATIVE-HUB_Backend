@@ -126,7 +126,8 @@ export const submitConsultationForm = async (req, res, next) => {
           const result = await uploadBufferToCloudinary({
             buffer: file.buffer,
             folder: 'innovative-hub/consultations',
-            filename: `consultation_${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+            filename: `consultation_${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`,
+              resourceType: file.mimetype.startsWith('image/') ? 'image' : 'raw'
           });
           uploadedAttachments.push({
             url: result.secure_url,

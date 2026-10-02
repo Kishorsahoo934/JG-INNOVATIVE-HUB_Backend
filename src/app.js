@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+﻿import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
@@ -31,6 +31,8 @@ import galleryRoutes from './routes/gallery.routes.js';
 import projectRoutes from './routes/project.routes.js';
 import visitorRoutes from './routes/visitor.routes.js';
 import feedbackRoutes from './routes/feedback.routes.js';
+import projectBookingRoutes from './routes/projectBooking.routes.js';
+
 import developedProductRoutes from './routes/developedProduct.routes.js';
 import productDevContentRoutes from './routes/productDevContent.routes.js';
 import { addRealtimeClient, publishDataChange } from './utils/realtime.js';
@@ -151,7 +153,11 @@ app.use("/api/developed-products", developedProductRoutes);
 app.use("/api/product-dev-content", productDevContentRoutes);
 app.use("/api/visitors", visitorRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/project-bookings", projectBookingRoutes);
+
 
 app.use(errorHandler);
 
 export default app;
+
+
