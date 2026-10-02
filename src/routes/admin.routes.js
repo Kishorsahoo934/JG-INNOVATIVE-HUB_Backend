@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import { adminLogin } from "../controllers/admin.controller.js";
 import adminAuth from "../middleware/adminAuth.middleware.js";
 import upload, { uploadVideo, uploadToCloudinary, uploadOfflinePdf, uploadOfflineDoc } from "../middleware/upload.middleware.js";
@@ -60,7 +60,7 @@ router.post("/upload/editor-image", adminAuth, upload.single("image"), async (re
 });
 
 // Video upload for product videos (mp4, webm, mov, etc.). Clear errors so admin can retry.
-// Offline order bill uploads (PDF / Word) — stored as raw on Cloudinary
+// Offline order bill uploads (PDF / Word) â€” stored as raw on Cloudinary
 router.post("/upload/offline-bill-pdf", adminAuth, uploadOfflinePdf.single("file"), async (req, res, next) => {
   try {
     if (!req.file) {
@@ -358,7 +358,7 @@ router.patch('/internships/:id', adminAuth, async (req, res, next) => {
       };
       const statusMessages = {
         'under-review': 'Your application is currently being reviewed by our team. We will get back to you soon with further updates.',
-        'shortlisted': 'Congratulations! 🎉 Your application has been shortlisted. Our team will reach out to you shortly with the next steps.',
+        'shortlisted': 'Congratulations! ðŸŽ‰ Your application has been shortlisted. Our team will reach out to you shortly with the next steps.',
         'rejected': 'After careful consideration, we regret to inform you that your application has not been selected at this time. We encourage you to apply again in the future.',
         'pending': 'Your application status has been updated to pending review.'
       };
@@ -384,7 +384,7 @@ router.patch('/internships/:id', adminAuth, async (req, res, next) => {
             <p style="font-size: 13px; color: #9ca3af; margin: 0;">If you have any questions, feel free to reach out to us at <a href="mailto:supportinnovativehub@gmail.com" style="color: #3b82f6;">supportinnovativehub@gmail.com</a></p>
           </div>
           <div style="background-color: #f8fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
-            <p style="font-size: 12px; color: #9ca3af; margin: 0;">© ${new Date().getFullYear()} JG Innovative Hub. All rights reserved.</p>
+            <p style="font-size: 12px; color: #9ca3af; margin: 0;">Â© ${new Date().getFullYear()} JG Innovative Hub. All rights reserved.</p>
           </div>
         </div>
       `;
@@ -401,6 +401,61 @@ router.patch('/internships/:id', adminAuth, async (req, res, next) => {
     }
 
     res.json({ success: true, message: `Application status updated to ${status}`, data: application });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+import ProjectBooking from "../models/ProjectBooking.model.js";
+
+// Admin: View all Project Bookings
+router.get("/project-bookings", adminAuth, async (req, res, next) => {
+  try {
+    const bookings = await ProjectBooking.find()
+      .populate("user", "name email profileImage")
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: bookings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin: Update Project Booking Stage
+router.patch('/project-bookings/:id/stage', adminAuth, async (req, res, next) => {
+  try {
+    const { processStage } = req.body;
+    const application = await ProjectBooking.findByIdAndUpdate(req.params.id, { processStage }, { new: true });
+    if (!application) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+    res.json({ success: true, data: application });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin: Edit Project Booking
+router.patch('/project-bookings/:id', adminAuth, async (req, res, next) => {
+  try {
+    const booking = await ProjectBooking.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+    res.json({ success: true, data: booking });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin: Delete Project Booking
+router.delete('/project-bookings/:id', adminAuth, async (req, res, next) => {
+  try {
+    const booking = await ProjectBooking.findByIdAndDelete(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+    res.json({ success: true, message: "Booking deleted successfully" });
   } catch (error) {
     next(error);
   }
@@ -514,4 +569,5 @@ router.delete('/internship-posts/:id', adminAuth, async (req, res, next) => {
     next(error);
   }
 });
+
 
