@@ -429,6 +429,28 @@ router.patch('/project-bookings/:id/stage', adminAuth, async (req, res, next) =>
     if (!application) {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
+    
+    // Send email notification
+    if (application.email) {
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; color: #333;">
+          <h2 style="color: #2563eb;">Project Update</h2>
+          <p>Hello ${application.name || 'Valued Client'},</p>
+          <p>Your custom project "<strong>${application.productName}</strong>" has been updated to a new stage:</p>
+          <div style="background-color: #f3f4f6; padding: 15px; border-left: 4px solid #2563eb; font-size: 18px; font-weight: bold; margin: 20px 0;">
+            ${processStage}
+          </div>
+          <p>Our team is actively working on your request. If you have any questions, feel free to reach out.</p>
+          <p>Best regards,<br>The JG Innovative Hub Team</p>
+        </div>
+      `;
+      try {
+        await emailService.sendOperationalEmail(application.email, `Project Stage Updated: ${processStage}`, emailHtml);
+      } catch (err) {
+        console.error('Failed to send stage update email:', err);
+      }
+    }
+    
     res.json({ success: true, data: application });
   } catch (error) {
     next(error);
