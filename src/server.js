@@ -4,17 +4,23 @@ import connectDB from './config/db.js';
 import app from './app.js';
 import Admin from './models/Admin.model.js';
 
+const isAllowedOriginServer = (origin) => {
+  if (!origin) return true;
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  if (origin.endsWith('.inovative-hub.com') || origin.endsWith('.innovative-hub.com')) return true;
+  if (origin === 'https://inovative-hub.com' || origin === 'https://innovative-hub.com') return true;
+  if (origin.endsWith('.vercel.app') || origin.endsWith('.netlify.app')) return true;
+  return false;
+};
+
 const corsOptions = {
-  origin: [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://admin.inovative-hub.com",
-    "https://admin.innovative-hub.com",
-    "https://inovative-hub.com",
-    "https://www.inovative-hub.com",
-    "https://innovative-hub.com",
-    "https://www.innovative-hub.com"
-  ],
+  origin: function (origin, callback) {
+    if (isAllowedOriginServer(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 };
 

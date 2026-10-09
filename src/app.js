@@ -1,4 +1,4 @@
-﻿import dotenv from 'dotenv';
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
@@ -77,6 +77,8 @@ const isAllowedOrigin = (origin) => {
   if (/^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
   if (/^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
   if (/^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
+  if (origin.endsWith('.inovative-hub.com') || origin.endsWith('.innovative-hub.com')) return true;
+  if (origin.endsWith('.vercel.app') || origin.endsWith('.netlify.app')) return true;
   return false;
 };
 
