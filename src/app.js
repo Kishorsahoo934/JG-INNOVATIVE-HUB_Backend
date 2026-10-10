@@ -45,6 +45,16 @@ const app = express();
 // Middleware
 app.use(compression());
 app.use(express.json());
+
+// Security Headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  res.setHeader('Content-Security-Policy', "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:;");
+  next();
+});
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
