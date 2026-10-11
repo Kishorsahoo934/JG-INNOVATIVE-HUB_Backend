@@ -1,4 +1,4 @@
-﻿import nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -59,7 +59,7 @@ export const emailService = {
     }
     try {
       const from = process.env.EMAIL_FROM_INFO || `"JG Innovative Hub" <${process.env.SMTP_USER}>`;
-      const to = process.env.CONTACT_RECEIVER_EMAIL || 'supportinnovativehub@gmail.com';
+      const to = process.env.CONTACT_RECEIVER_EMAIL || 'admin@inovative-hub.com';
       const replyTo = `"${visitor.name || 'Visitor'}" <${visitor.email}>`;
       const subject = `Support Inquiry: ${visitor.subject || 'New Message'}`;
       const html = `

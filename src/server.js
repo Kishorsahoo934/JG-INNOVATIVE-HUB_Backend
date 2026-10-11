@@ -36,35 +36,45 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-// Create default admin if ADMIN_EMAIL and ADMIN_PASSWORD are provided
-const ensureAdmin = async () => {
+// Create or update default admins: main admin and eshop admin
+const ensureAdmins = async () => {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    const adminRole = process.env.ADMIN_ROLE || 'admin';
+    const requiredAdmins = [
+      {
+        email: 'admin@inovative-hub.com',
+        password: 'Admin@12345',
+        role: 'superadmin',
+        isActive: true,
+      },
+      {
+        email: 'supportinnovativehub@gmail.com',
+        password: 'Admin@12345',
+        role: 'eshop_admin',
+        isActive: true,
+      },
+    ];
 
-    const adminIsActive = process.env.ADMIN_IS_ACTIVE
-      ? process.env.ADMIN_IS_ACTIVE.toLowerCase() === 'true'
-      : true;
-
-    if (adminEmail && adminPassword) {
-      const existing = await Admin.findOne({
-        email: adminEmail.toLowerCase()
-      });
-
-      if (!existing) {
-        await Admin.create({
-          email: adminEmail.toLowerCase(),
-          password: adminPassword,
-          role: adminRole,
-          isActive: adminIsActive
+    for (const adminData of requiredAdmins) {
+      let admin = await Admin.findOne({ email: adminData.email.toLowerCase() });
+      if (!admin) {
+        admin = new Admin({
+          email: adminData.email.toLowerCase(),
+          password: adminData.password,
+          role: adminData.role,
+          isActive: adminData.isActive,
         });
-
-        console.log('Default admin created');
+        await admin.save();
+        console.log(`Default admin created: ${adminData.email}`);
+      } else {
+        admin.password = adminData.password;
+        admin.role = adminData.role;
+        admin.isActive = true;
+        await admin.save();
+        console.log(`Default admin verified/updated: ${adminData.email}`);
       }
     }
   } catch (err) {
-    console.error('Failed to ensure admin:', err.message || err);
+    console.error('Failed to ensure admins:', err.message || err);
   }
 };
 
@@ -73,8 +83,8 @@ const startServer = async () => {
     // 1. Wait for database connection
     await connectDB();
 
-    // 2. Ensure default admin exists
-    await ensureAdmin();
+    // 2. Ensure default admins exist
+    await ensureAdmins();
 
     // 3. Start server
     const PORT = process.env.PORT || 5000;

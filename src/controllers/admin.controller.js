@@ -3,25 +3,54 @@ import Admin from "../models/Admin.model.js";
 
 export const adminLogin = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, panel } = req.body;
+    const clientPanel = (panel || req.headers['x-admin-panel'] || '').toLowerCase();
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password required" });
+      return res.status(400).json({ success: false, message: "Email and password required" });
     }
 
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Enforce panel segregation
+    if (clientPanel === 'eshop' && cleanEmail !== 'supportinnovativehub@gmail.com') {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
+    }
+
+    if (clientPanel === 'main' && cleanEmail !== 'admin@inovative-hub.com') {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
+    }
+
+    // Only allow designated admin accounts
+    if (cleanEmail !== 'supportinnovativehub@gmail.com' && cleanEmail !== 'admin@inovative-hub.com') {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    const admin = await Admin.findOne({ email: cleanEmail });
     if (!admin) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    if (!admin.isActive) {
+      return res.status(403).json({ success: false, message: "Admin account is deactivated" });
     }
 
     const matched = await admin.comparePassword(password);
     if (!matched) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
     }
 
-    const token = jwt.sign({ role: admin.role, email: admin.email }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    const token = jwt.sign(
+      { id: admin._id, role: admin.role, email: admin.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.json({
       success: true,
@@ -35,6 +64,6 @@ export const adminLogin = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };

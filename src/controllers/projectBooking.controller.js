@@ -1,4 +1,4 @@
-﻿import ProjectBooking from '../models/ProjectBooking.model.js';
+import ProjectBooking from '../models/ProjectBooking.model.js';
 import { uploadBufferToCloudinary } from '../middleware/upload.middleware.js';
 import { sendContactEmail } from '../utils/mailer.js';
 import { emailService } from '../services/email.service.js';
@@ -58,7 +58,7 @@ export const submitProjectBookingForm = async (req, res, next) => {
     });
     await booking.save();
 
-    const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'supportinnovativehub@gmail.com';
+    const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'admin@inovative-hub.com';
     const emailBody = "New Custom Project Request Received!\n\nUser: ${req.user ? req.user.name : name} (${email})\nPhone: ${phone}\n\n${message}";
 
     sendContactEmail({

@@ -32,7 +32,7 @@ export const submitContactForm = async (req, res, next) => {
       }));
     const attachmentList = files.map((f) => `${f.originalname || 'file'} (${Math.round((f.size || 0) / 1024)} KB)`);
 
-    const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'supportinnovativehub@gmail.com';
+    const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'admin@inovative-hub.com';
 
     const sent = await sendContactEmail({
       toEmail: receiver,
@@ -163,7 +163,7 @@ export const submitConsultationForm = async (req, res, next) => {
     await booking.save();
 
     // 3. Prepare Email to Admin
-    const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'supportinnovativehub@gmail.com';
+    const receiver = process.env.CONTACT_RECEIVER_EMAIL || 'admin@inovative-hub.com';
     const emailBody = `Payment of ₹49 received!\n\nUser: ${req.user ? req.user.name : name} (${email})\nPhone: ${phone}\n\n${message}`;
 
     const emailAttachments = files
@@ -197,7 +197,7 @@ Thank you for choosing JG Innovative Hub!`;
     sendContactEmail({
       toEmail: email,
       fromName: 'JG Innovative Hub',
-      fromEmail: 'supportinnovativehub@gmail.com',
+      fromEmail: 'admin@inovative-hub.com',
       subject: 'Idea Submission Successful - Product Development',
       message: userEmailBody
     }).catch(err => console.error("[Mailer] Failed to send user confirmation email", err));

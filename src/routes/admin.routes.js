@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import { adminLogin } from "../controllers/admin.controller.js";
 import adminAuth from "../middleware/adminAuth.middleware.js";
 import upload, { uploadVideo, uploadToCloudinary, uploadOfflinePdf, uploadOfflineDoc } from "../middleware/upload.middleware.js";
@@ -18,7 +18,18 @@ const router = express.Router();
 router.post("/login", adminLogin);
 
 router.get("/profile", adminAuth, (req, res) => {
-  res.json({ admin: req.admin });
+  const clientPanel = (req.headers['x-admin-panel'] || '').toLowerCase();
+  const adminEmail = (req.admin?.email || '').toLowerCase();
+
+  if (clientPanel === 'eshop' && adminEmail !== 'supportinnovativehub@gmail.com') {
+    return res.status(403).json({ success: false, message: "Access denied: Unauthorized account" });
+  }
+
+  if (clientPanel === 'main' && adminEmail !== 'admin@inovative-hub.com') {
+    return res.status(403).json({ success: false, message: "Access denied: Unauthorized account" });
+  }
+
+  res.json({ success: true, admin: req.admin });
 });
 
 // Admin: get all products (no pagination, full data) for manage-products UI
@@ -60,7 +71,7 @@ router.post("/upload/editor-image", adminAuth, upload.single("image"), async (re
 });
 
 // Video upload for product videos (mp4, webm, mov, etc.). Clear errors so admin can retry.
-// Offline order bill uploads (PDF / Word) â€” stored as raw on Cloudinary
+// Offline order bill uploads (PDF / Word) — stored as raw on Cloudinary
 router.post("/upload/offline-bill-pdf", adminAuth, uploadOfflinePdf.single("file"), async (req, res, next) => {
   try {
     if (!req.file) {
@@ -358,7 +369,7 @@ router.patch('/internships/:id', adminAuth, async (req, res, next) => {
       };
       const statusMessages = {
         'under-review': 'Your application is currently being reviewed by our team. We will get back to you soon with further updates.',
-        'shortlisted': 'Congratulations! ðŸŽ‰ Your application has been shortlisted. Our team will reach out to you shortly with the next steps.',
+        'shortlisted': 'Congratulations! 🎉 Your application has been shortlisted. Our team will reach out to you shortly with the next steps.',
         'rejected': 'After careful consideration, we regret to inform you that your application has not been selected at this time. We encourage you to apply again in the future.',
         'pending': 'Your application status has been updated to pending review.'
       };
@@ -381,10 +392,10 @@ router.patch('/internships/:id', adminAuth, async (req, res, next) => {
             </div>
             <p style="font-size: 15px; color: #374151; line-height: 1.7; margin: 0 0 24px 0;">${statusMessage}</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-            <p style="font-size: 13px; color: #9ca3af; margin: 0;">If you have any questions, feel free to reach out to us at <a href="mailto:supportinnovativehub@gmail.com" style="color: #3b82f6;">supportinnovativehub@gmail.com</a></p>
+            <p style="font-size: 13px; color: #9ca3af; margin: 0;">If you have any questions, feel free to reach out to us at <a href="mailto:admin@inovative-hub.com" style="color: #3b82f6;">admin@inovative-hub.com</a></p>
           </div>
           <div style="background-color: #f8fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
-            <p style="font-size: 12px; color: #9ca3af; margin: 0;">Â© ${new Date().getFullYear()} JG Innovative Hub. All rights reserved.</p>
+            <p style="font-size: 12px; color: #9ca3af; margin: 0;">© ${new Date().getFullYear()} JG Innovative Hub. All rights reserved.</p>
           </div>
         </div>
       `;
